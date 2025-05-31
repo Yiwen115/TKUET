@@ -1,62 +1,21 @@
-// 初始化 MediaPipe Hands
+// DOM 元素
 const videoElement = document.getElementById('input-video');
-const canvasElement = document.getElementById('output-canvas');
+const canvasElement = document.getElementById('hand-canvas');
 const canvasCtx = canvasElement.getContext('2d');
-const gameCanvas = document.getElementById('game-canvas');
-const gameCtx = gameCanvas.getContext('2d');
+const handStatus = document.getElementById('hand-status');
 const scoreElement = document.getElementById('score');
-
-// 設置遊戲畫布尺寸
-gameCanvas.width = gameCanvas.offsetWidth;
-gameCanvas.height = gameCanvas.offsetHeight;
-canvasElement.width = 400;
-canvasElement.height = 300;
+const loadingMessage = document.getElementById('loading-message');
+const switchCameraButton = document.getElementById('switch-camera');
+const toggleDebugButton = document.getElementById('toggle-debug');
 
 // 遊戲狀態
 let score = 0;
-let currentQuestion = null;
-let selectedOption = -1;
-let lastGestureTime = 0;
-const gestureDelay = 1000; // 手勢確認延遲（毫秒）
+let isDebugMode = false;
+let currentStream = null;
+let cameras = [];
+let currentCameraIndex = 0;
 
-// 問題庫
-const questions = [
-    {
-        question: "什麼是教育科技?",
-        options: [
-            "運用科技改善教學效果",
-            "只是使用電腦上課",
-            "玩遊戲學習",
-            "線上考試系統"
-        ],
-        correct: 0,
-        explanation: "教育科技是為了提升教學效果而運用各種科技工具和方法。"
-    },
-    {
-        question: "下列哪個不是教育科技應用?",
-        options: [
-            "虛擬實境教學",
-            "互動式白板",
-            "純粹紙本講義",
-            "線上學習平台"
-        ],
-        correct: 2,
-        explanation: "純粹使用紙本講義，沒有結合任何科技輔助，不屬於教育科技應用。"
-    },
-    {
-        question: "教育科技的目的是?",
-        options: [
-            "取代教師",
-            "提升學習效果",
-            "減少教學時間",
-            "省錢"
-        ],
-        correct: 1,
-        explanation: "教育科技的主要目的是提升學習效果，而不是取代教師或單純節省成本。"
-    }
-];
-
-// 初始化手勢識別
+// 初始化手部檢測
 const hands = new Hands({
     locateFile: (file) => {
         return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
@@ -66,174 +25,171 @@ const hands = new Hands({
 hands.setOptions({
     maxNumHands: 2,
     modelComplexity: 1,
-    minDetectionConfidence: 0.7, // 提高檢測信心度
-    minTrackingConfidence: 0.7  // 提高追踪信心度
+    minDetectionConfidence: 0.5,
+    minTrackingConfidence: 0.5
 });
 
-// 處理手勢識別結果
-hands.onResults(results => {
-    // 繪製攝影機畫面
+// 處理手部檢測結果
+hands.onResults(onResults);
+
+// 初始化相機
+async function initializeCamera() {
+    try {
+        // 獲取所有可用的相機
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        cameras = devices.filter(device => device.kind === 'videoinput');
+
+        // 設置相機
+        await setupCamera();
+        loadingMessage.style.display = 'none';
+    } catch (error) {
+        console.error('Error initializing camera:', error);
+        loadingMessage.textContent = '無法訪問相機，請確保已授予權限';
+    }
+}
+
+// 設置相機
+async function setupCamera() {
+    if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+    }
+
+    const constraints = {
+        video: {
+            width: 1280,
+            height: 720,
+            deviceId: cameras[currentCameraIndex]?.deviceId
+        }
+    };
+
+    try {
+        currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+        videoElement.srcObject = currentStream;
+        await videoElement.play();
+
+        // 設置 canvas 尺寸
+        canvasElement.width = videoElement.videoWidth;
+        canvasElement.height = videoElement.videoHeight;
+
+        // 初始化相機處理
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({image: videoElement});
+            },
+            width: 1280,
+            height: 720
+        });
+        camera.start();
+    } catch (error) {
+        console.error('Error accessing camera:', error);
+        loadingMessage.textContent = '無法訪問相機';
+    }
+}
+
+// 切換相機
+switchCameraButton.onclick = () => {
+    if (cameras.length > 1) {
+        currentCameraIndex = (currentCameraIndex + 1) % cameras.length;
+        setupCamera();
+    }
+};
+
+// 切換除錯模式
+toggleDebugButton.onclick = () => {
+    isDebugMode = !isDebugMode;
+};
+
+// 處理手部檢測結果
+function onResults(results) {
+    // 清除 canvas
     canvasCtx.save();
     canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-    canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
 
-    // 繪製手部標記
+    // 如果在除錯模式下，繪製相機畫面
+    if (isDebugMode) {
+        canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+    }
+
+    // 更新手部狀態
     if (results.multiHandLandmarks) {
-        for (const landmarks of results.multiHandLandmarks) {
-            drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, 
-                {color: '#00FF00', lineWidth: 3});
-            drawLandmarks(canvasCtx, landmarks, 
-                {color: '#FF0000', lineWidth: 2});
-        }
-    }
-    canvasCtx.restore();
+        handStatus.textContent = `偵測到 ${results.multiHandLandmarks.length} 隻手`;
 
-    // 處理遊戲邏輯
-    handleGameLogic(results);
-});
-
-// 設置攝影機
-const camera = new Camera(videoElement, {
-    onFrame: async () => {
-        await hands.send({image: videoElement});
-    },
-    width: 400,
-    height: 300
-});
-camera.start();
-
-// 遊戲邏輯處理
-function handleGameLogic(results) {
-    if (!currentQuestion) {
-        currentQuestion = getRandomQuestion();
-        drawQuestion();
-    }
-
-    if (results.multiHandLandmarks && results.multiHandLandmarks.length >= 1) {
-        // 檢測左手位置（如果有）
-        const leftHandIndex = results.multiHandedness.findIndex(hand => hand.label === 'Left');
-        if (leftHandIndex !== -1) {
-            const leftHand = results.multiHandLandmarks[leftHandIndex];
-            const leftHandY = leftHand[9].y * gameCanvas.height;
-            const newSelectedOption = Math.floor((leftHandY - 150) / 100);
+        // 為每隻手繪製輪廓
+        results.multiHandLandmarks.forEach((landmarks, index) => {
+            const handedness = results.multiHandedness[index].label;
             
-            if (newSelectedOption >= 0 && newSelectedOption < 4 && newSelectedOption !== selectedOption) {
-                selectedOption = newSelectedOption;
-            }
-        }
-
-        // 檢測右手手勢（如果有）
-        const rightHandIndex = results.multiHandedness.findIndex(hand => hand.label === 'Right');
-        if (rightHandIndex !== -1) {
-            const rightHand = results.multiHandLandmarks[rightHandIndex];
-            const rightHandGesture = detectGesture(rightHand);
-            const currentTime = Date.now();
+            // 繪製手部輪廓
+            drawHandOutline(canvasCtx, landmarks, handedness);
             
-            if (rightHandGesture === 'pointing' && currentTime - lastGestureTime > gestureDelay) {
-                lastGestureTime = currentTime;
-                if (selectedOption >= 0 && selectedOption < 4) {
-                    checkAnswer(selectedOption);
-                }
+            // 在除錯模式下顯示更多細節
+            if (isDebugMode) {
+                drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
+                    color: handedness === 'Left' ? '#00FF00' : '#FF0000',
+                    lineWidth: 2
+                });
+                drawLandmarks(canvasCtx, landmarks, {
+                    color: handedness === 'Left' ? '#00FF00' : '#FF0000',
+                    lineWidth: 1
+                });
             }
-        }
-
-        // 更新畫面
-        drawQuestion(selectedOption);
-    }
-}
-
-// 繪製問題和選項
-function drawQuestion(selectedOption = -1) {
-    gameCtx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
-    
-    // 繪製問題
-    gameCtx.fillStyle = '#2c3e50';
-    gameCtx.font = 'bold 24px "Noto Sans TC"';
-    gameCtx.textAlign = 'center';
-    gameCtx.fillText(currentQuestion.question, gameCanvas.width/2, 80);
-
-    // 繪製選項
-    currentQuestion.options.forEach((option, index) => {
-        const y = 150 + index * 100;
-        const isSelected = selectedOption === index;
-        
-        // 選項背景
-        gameCtx.fillStyle = isSelected ? '#3498db' : '#34495e';
-        gameCtx.beginPath();
-        gameCtx.roundRect(100, y - 30, gameCanvas.width - 200, 60, 10);
-        gameCtx.fill();
-
-        // 選項文字
-        gameCtx.fillStyle = 'white';
-        gameCtx.font = isSelected ? 'bold 20px "Noto Sans TC"' : '20px "Noto Sans TC"';
-        gameCtx.fillText(option, gameCanvas.width/2, y + 10);
-    });
-}
-
-// 檢查答案
-function checkAnswer(selectedOption) {
-    if (selectedOption === currentQuestion.correct) {
-        score += 10;
-        scoreElement.textContent = score;
-        showFeedback(true);
+        });
     } else {
-        showFeedback(false);
+        handStatus.textContent = '未偵測到手部';
     }
-    
-    // 延遲後換下一題
-    setTimeout(() => {
-        currentQuestion = getRandomQuestion();
-        drawQuestion();
-    }, 2000);
+
+    canvasCtx.restore();
 }
 
-// 顯示答題反饋
-function showFeedback(isCorrect) {
-    gameCtx.fillStyle = isCorrect ? 'rgba(46, 204, 113, 0.9)' : 'rgba(231, 76, 60, 0.9)';
-    gameCtx.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
-    
-    gameCtx.fillStyle = 'white';
-    gameCtx.font = 'bold 32px "Noto Sans TC"';
-    gameCtx.fillText(isCorrect ? '答對了！' : '答錯了！', gameCanvas.width/2, gameCanvas.height/2 - 40);
-    
-    gameCtx.font = '20px "Noto Sans TC"';
-    const explanation = currentQuestion.explanation;
-    const words = explanation.split('');
-    let line = '';
-    let y = gameCanvas.height/2 + 20;
-    
-    words.forEach(word => {
-        const testLine = line + word;
-        const metrics = gameCtx.measureText(testLine);
-        if (metrics.width > gameCanvas.width - 100) {
-            gameCtx.fillText(line, gameCanvas.width/2, y);
-            line = word;
-            y += 30;
-        } else {
-            line = testLine;
-        }
-    });
-    gameCtx.fillText(line, gameCanvas.width/2, y);
+// 繪製手部輪廓
+function drawHandOutline(ctx, landmarks, handedness) {
+    const points = landmarks.map(landmark => ({
+        x: landmark.x * canvasElement.width,
+        y: landmark.y * canvasElement.height
+    }));
+
+    // 設置樣式
+    ctx.strokeStyle = handedness === 'Left' ? '#00FF00' : '#FF0000';
+    ctx.lineWidth = 3;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+
+    // 開始繪製路徑
+    ctx.beginPath();
+
+    // 繪製拇指輪廓
+    drawFingerOutline(ctx, [points[0], points[1], points[2], points[3], points[4]]);
+
+    // 繪製食指輪廓
+    drawFingerOutline(ctx, [points[0], points[5], points[6], points[7], points[8]]);
+
+    // 繪製中指輪廓
+    drawFingerOutline(ctx, [points[0], points[9], points[10], points[11], points[12]]);
+
+    // 繪製無名指輪廓
+    drawFingerOutline(ctx, [points[0], points[13], points[14], points[15], points[16]]);
+
+    // 繪製小指輪廓
+    drawFingerOutline(ctx, [points[0], points[17], points[18], points[19], points[20]]);
+
+    // 繪製手掌輪廓
+    ctx.moveTo(points[0].x, points[0].y);
+    ctx.lineTo(points[5].x, points[5].y);
+    ctx.lineTo(points[9].x, points[9].y);
+    ctx.lineTo(points[13].x, points[13].y);
+    ctx.lineTo(points[17].x, points[17].y);
+    ctx.closePath();
+
+    // 完成繪製
+    ctx.stroke();
 }
 
-// 取得隨機問題
-function getRandomQuestion() {
-    return questions[Math.floor(Math.random() * questions.length)];
-}
-
-// 檢測手勢
-function detectGesture(landmarks) {
-    // 檢測食指指向手勢
-    const indexTip = landmarks[8];
-    const indexDip = landmarks[7];
-    const indexPip = landmarks[6];
-    const middleTip = landmarks[12];
-    
-    // 確保食指是伸直的，且其他手指是彎曲的
-    if (indexTip.y < indexDip.y && 
-        indexDip.y < indexPip.y && 
-        indexTip.y < middleTip.y) {
-        return 'pointing';
+// 繪製手指輪廓
+function drawFingerOutline(ctx, points) {
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i].x, points[i].y);
     }
-    return 'none';
-} 
+}
+
+// 初始化應用
+initializeCamera(); 
