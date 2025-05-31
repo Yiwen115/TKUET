@@ -14,32 +14,42 @@
   <body>
     <div class="container">
         <h1>教育科技互動學習遊戲</h1>
-        <div class="game-area">
-            <video id="input-video" class="input-video"></video>
-            <canvas id="output-canvas" class="output-canvas"></canvas>
-            <div id="game-canvas-container">
+        <div class="main-content">
+            <div class="camera-container">
+                <video id="input-video" class="input-video" playsinline></video>
+                <canvas id="output-canvas" class="output-canvas"></canvas>
+                <div class="camera-guide">
+                    <div class="hand-position left">左手位置</div>
+                    <div class="hand-position right">右手位置</div>
+                </div>
+            </div>
+            <div class="game-container">
+                <div class="score-display">
+                    <div class="score">分數: <span id="score">0</span></div>
+                </div>
                 <canvas id="game-canvas" class="game-canvas"></canvas>
             </div>
         </div>
-        <div class="game-info">
-            <div class="score-container">
-                <div class="score-label">目前分數</div>
-                <div class="score-value"><span id="score">0</span></div>
-            </div>
-            <div class="combo-container">
-                <div class="combo-label">連擊數</div>
-                <div class="combo-value"><span id="combo">0</span></div>
-            </div>
-        </div>
         <div class="instructions">
-            <h2>遊戲說明</h2>
-            <p>使用雙手控制遊戲：</p>
-            <ul>
-                <li>👆 左手上下移動來選擇答案</li>
-                <li>✌️ 右手食指指向前方來確認選擇</li>
-                <li>🎯 答對題目可以獲得分數</li>
-                <li>🔥 連續答對可以獲得連擊加分！</li>
-            </ul>
+            <h2>操作指南</h2>
+            <div class="instruction-content">
+                <div class="instruction-item">
+                    <span class="instruction-icon">👈</span>
+                    <span class="instruction-text">左手放在畫面左側</span>
+                </div>
+                <div class="instruction-item">
+                    <span class="instruction-icon">👉</span>
+                    <span class="instruction-text">右手放在畫面右側</span>
+                </div>
+                <div class="instruction-item">
+                    <span class="instruction-icon">⬆️</span>
+                    <span class="instruction-text">上下移動左手選擇答案</span>
+                </div>
+                <div class="instruction-item">
+                    <span class="instruction-icon">👆</span>
+                    <span class="instruction-text">伸出右手食指確認答案</span>
+                </div>
+            </div>
         </div>
     </div>
     <script src="game.js"></script>
