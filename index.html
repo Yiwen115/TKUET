@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>教育科技互動學習遊戲</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+  </head>
+
+  <body>
+    <div class="container">
+        <h1>教育科技互動學習遊戲</h1>
+        <div class="game-area">
+            <video id="input-video" class="input-video"></video>
+            <canvas id="output-canvas" class="output-canvas"></canvas>
+            <div id="game-canvas-container">
+                <canvas id="game-canvas" class="game-canvas"></canvas>
+            </div>
+        </div>
+        <div class="game-info">
+            <div class="score-container">
+                <div class="score-label">目前分數</div>
+                <div class="score-value"><span id="score">0</span></div>
+            </div>
+            <div class="combo-container">
+                <div class="combo-label">連擊數</div>
+                <div class="combo-value"><span id="combo">0</span></div>
+            </div>
+        </div>
+        <div class="instructions">
+            <h2>遊戲說明</h2>
+            <p>使用雙手控制遊戲：</p>
+            <ul>
+                <li>👆 左手上下移動來選擇答案</li>
+                <li>✌️ 右手食指指向前方來確認選擇</li>
+                <li>🎯 答對題目可以獲得分數</li>
+                <li>🔥 連續答對可以獲得連擊加分！</li>
+            </ul>
+        </div>
+    </div>
+    <script src="game.js"></script>
+  </body>
+</html>
