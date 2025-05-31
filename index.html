@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>教育科技互動學習遊戲</title>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js"></script>
+    <title>手勢互動遊戲</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
     <link rel="stylesheet" href="styles.css">
@@ -12,43 +12,39 @@
   </head>
 
   <body>
-    <div class="container">
-        <h1>教育科技互動學習遊戲</h1>
-        <div class="main-content">
-            <div class="camera-container">
-                <video id="input-video" class="input-video" playsinline></video>
-                <canvas id="output-canvas" class="output-canvas"></canvas>
-                <div class="camera-guide">
-                    <div class="hand-position left">左手位置</div>
-                    <div class="hand-position right">右手位置</div>
-                </div>
-            </div>
-            <div class="game-container">
-                <div class="score-display">
-                    <div class="score">分數: <span id="score">0</span></div>
-                </div>
-                <canvas id="game-canvas" class="game-canvas"></canvas>
-            </div>
+    <div class="game-container">
+        <div class="video-container">
+            <video id="input-video" playsinline></video>
+            <canvas id="hand-canvas"></canvas>
+            <div id="loading-message">載入中...請允許使用相機</div>
         </div>
-        <div class="instructions">
-            <h2>操作指南</h2>
-            <div class="instruction-content">
-                <div class="instruction-item">
-                    <span class="instruction-icon">👈</span>
-                    <span class="instruction-text">左手放在畫面左側</span>
-                </div>
-                <div class="instruction-item">
-                    <span class="instruction-icon">👉</span>
-                    <span class="instruction-text">右手放在畫面右側</span>
-                </div>
-                <div class="instruction-item">
-                    <span class="instruction-icon">⬆️</span>
-                    <span class="instruction-text">上下移動左手選擇答案</span>
-                </div>
-                <div class="instruction-item">
-                    <span class="instruction-icon">👆</span>
-                    <span class="instruction-text">伸出右手食指確認答案</span>
-                </div>
+        <div class="status-container">
+            <div id="hand-status">未偵測到手部</div>
+            <div id="score">分數: 0</div>
+        </div>
+        <div class="debug-container">
+            <button id="switch-camera">切換相機</button>
+            <button id="toggle-debug">顯示/隱藏除錯資訊</button>
+        </div>
+    </div>
+    <div class="instructions">
+        <h2>操作指南</h2>
+        <div class="instruction-content">
+            <div class="instruction-item">
+                <span class="instruction-icon">👈</span>
+                <span class="instruction-text">左手放在畫面左側</span>
+            </div>
+            <div class="instruction-item">
+                <span class="instruction-icon">👉</span>
+                <span class="instruction-text">右手放在畫面右側</span>
+            </div>
+            <div class="instruction-item">
+                <span class="instruction-icon">⬆️</span>
+                <span class="instruction-text">上下移動左手選擇答案</span>
+            </div>
+            <div class="instruction-item">
+                <span class="instruction-icon">👆</span>
+                <span class="instruction-text">伸出右手食指確認答案</span>
             </div>
         </div>
     </div>
