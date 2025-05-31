@@ -121,36 +121,31 @@ let camera = null;
 
 // 切換相機
 switchCameraButton.addEventListener('click', async () => {
-    currentCamera = currentCamera === 'user' ? 'environment' : 'user';
     if (camera) {
-        camera.stop();
+        await camera.stop();
     }
+    currentCamera = currentCamera === 'user' ? 'environment' : 'user';
     await initializeCamera();
 });
 
 // 初始化相機
 async function initializeCamera() {
     try {
-        const constraints = {
+        if (camera) {
+            await camera.stop();
+        }
+
+        const stream = await navigator.mediaDevices.getUserMedia({
             video: {
                 width: 640,
                 height: 480,
                 facingMode: currentCamera
             }
-        };
-
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        videoElement.srcObject = stream;
-        
-        // 等待視頻元素加載完成
-        await new Promise((resolve) => {
-            videoElement.onloadedmetadata = () => {
-                resolve();
-            };
         });
 
+        videoElement.srcObject = stream;
         await videoElement.play();
-        
+
         // 設置 canvas 尺寸
         handCanvas.width = videoElement.videoWidth;
         handCanvas.height = videoElement.videoHeight;
@@ -165,7 +160,7 @@ async function initializeCamera() {
             width: 640,
             height: 480
         });
-        
+
         await camera.start();
         loadingMessage.style.display = 'none';
         startScreen.style.display = 'flex';
@@ -487,7 +482,7 @@ function startGame() {
         score: 0,
         health: 3,
         playerX: 100,
-        playerY: 400,
+        playerY: gameCanvas.height - PLAYER_HEIGHT - 50,
         playerVelocityY: 0,
         isJumping: false,
         platforms: [{
@@ -522,7 +517,16 @@ startButton.addEventListener('click', startGame);
 restartButton.addEventListener('click', startGame);
 
 // 初始化遊戲
-initializeCamera();
+window.addEventListener('load', () => {
+    initializeCamera();
+    // 調整遊戲畫布大小
+    function resizeGame() {
+        gameCanvas.width = gameCanvas.offsetWidth;
+        gameCanvas.height = gameCanvas.offsetHeight;
+    }
+    window.addEventListener('resize', resizeGame);
+    resizeGame();
+});
 
 // 添加特效函數
 function addParticles(x, y, color, count, type = 'normal') {
