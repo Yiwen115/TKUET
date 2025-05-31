@@ -115,16 +115,40 @@ hands.setOptions({
     minTrackingConfidence: 0.5
 });
 
-// 處理手部檢測結果
-hands.onResults(onResults);
+// 相機設置
+let currentCamera = 'user';
+let camera = null;
+
+// 切換相機
+switchCameraButton.addEventListener('click', async () => {
+    currentCamera = currentCamera === 'user' ? 'environment' : 'user';
+    if (camera) {
+        camera.stop();
+    }
+    await initializeCamera();
+});
 
 // 初始化相機
 async function initializeCamera() {
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: { width: 640, height: 480 }
-        });
+        const constraints = {
+            video: {
+                width: 640,
+                height: 480,
+                facingMode: currentCamera
+            }
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
         videoElement.srcObject = stream;
+        
+        // 等待視頻元素加載完成
+        await new Promise((resolve) => {
+            videoElement.onloadedmetadata = () => {
+                resolve();
+            };
+        });
+
         await videoElement.play();
         
         // 設置 canvas 尺寸
@@ -134,15 +158,15 @@ async function initializeCamera() {
         gameCanvas.height = gameCanvas.offsetHeight;
 
         // 初始化相機處理
-        const camera = new Camera(videoElement, {
+        camera = new Camera(videoElement, {
             onFrame: async () => {
                 await hands.send({image: videoElement});
             },
             width: 640,
             height: 480
         });
-        camera.start();
         
+        await camera.start();
         loadingMessage.style.display = 'none';
         startScreen.style.display = 'flex';
     } catch (error) {
@@ -153,19 +177,28 @@ async function initializeCamera() {
 
 // 手勢處理
 hands.onResults((results) => {
-    if (!gameState.isPlaying) return;
-
-    handCtx.save();
+    // 清除畫布
     handCtx.clearRect(0, 0, handCanvas.width, handCanvas.height);
-    handCtx.scale(-1, 1);
-    handCtx.translate(-handCanvas.width, 0);
-
+    
+    // 繪製手部標記
     if (results.multiHandLandmarks) {
+        for (const landmarks of results.multiHandLandmarks) {
+            drawConnectors(handCtx, landmarks, HAND_CONNECTIONS, {
+                color: '#00FF00',
+                lineWidth: 2
+            });
+            drawLandmarks(handCtx, landmarks, {
+                color: '#FF0000',
+                lineWidth: 1,
+                radius: 3
+            });
+        }
+        
         // 處理手勢控制
-        handleHandGestures(results.multiHandLandmarks, results.multiHandedness);
+        if (gameState.isPlaying) {
+            handleHandGestures(results.multiHandLandmarks, results.multiHandedness);
+        }
     }
-
-    handCtx.restore();
 });
 
 // 手勢控制邏輯
